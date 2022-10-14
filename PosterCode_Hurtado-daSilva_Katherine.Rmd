@@ -1,0 +1,229 @@
+---
+title: "IST 719 Assignment 1"
+author: "Katherine Hurtado-da Silva"
+date: "1/3/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r, include=FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
+# Description
+
+The data set was selected from Kaggle and includes the number of suicides by country during the years of 1985-2016. There are a total of 27,820 observations with 12 attributes, however, only country, year, sex, suicide number, suicide per 100k, Human Development Index (HDI), Gross Domestic Product (GDP) per capita, and generation group will be explored. The omissions were due to the attributes not adding insight or already being represented as part of another calculated attribute withinin the data set.
+
+Suicide number and population will be omitted since the crude rate per 100k is representative of both of those values. The GDP for the year will also be omitted since GDP per capita is based off of this value as well. Country and year does not provide any useful additional information so it will also be removed.
+
+# Structure of Data Set
+
+```{r,include=FALSE}
+Sdata<-read.csv("/Users/hurtado/Desktop/IST 719/Project IST 719/master.csv", stringsAsFactors = F)
+Sdata$year<-as.factor(Sdata$year)
+Sdata$suicides.100k.pop<-as.numeric(Sdata$suicides.100k.pop)
+Sdata$HDI.for.year<-as.numeric(Sdata$HDI.for.year)
+Sdata$year<-as.character((Sdata$year))
+Sdata<-Sdata[,-6]
+Sdata<-Sdata[,-7]
+Sdata<-Sdata[,-8]
+Sdata<-Sdata[,-4]
+str(Sdata)
+```
+
+# Who is at greatest risk for suicide?
+
+include a map of the world, fill by average over all years. state this is the average suicide rate from 1985-2016 join word_map to this chart boom First map.
+
+```{r,include=FALSE}
+worlddata<-map_data("world")
+
+
+```
+
+Now get the Sdata and summarize each countries suicide rate
+
+```{r,include=FALSE}
+meansuicide<-Sdata%>%group_by(country)%>%summarise(AverageSuicide=mean(suicides.100k.pop))
+meansuicide<-meansuicide[order(meansuicide$AverageSuicide),]
+
+```
+
+```{r,include=FALSE}
+join.average<-inner_join(worlddata,meansuicide,by=c("region"="country"))
+```
+
+```{r,echo=FALSE}
+
+ggplot(data=join.average,aes(x=long,y=lat,group=group))+geom_polygon(aes(fill=AverageSuicide),color="black")+theme_void()+scale_fill_viridis_b()
+```
+
+# Which Countries Are Most Affected By Suicide Rates?
+
+```{r,echo=FALSE}
+#Top 10 countries with highest 32-year averages
+Top10<-meansuicide[91:100,]
+
+
+```
+
+```{r, echo=FALSE}
+ggplot(data=Top10,aes(x=reorder(country,(AverageSuicide)),y=AverageSuicide))+geom_bar(stat="sum")+coord_flip()+theme_classic()
+```
+
+# Top 10 Countries Trends
+
+```{r,include=FALSE}
+Top10T<-Sdata%>%group_by(country,year,sex,HDI.for.year  ,gdp_per_capita....)%>%summarise(AvgSuiYr=mean(suicides.100k.pop)) #creating a new subset to merge with the known top 10 countries afterward.This data set will include gdp, yearly susicidal per 100k average, by sex as well.
+
+```
+
+```{r,include=FALSE}
+jointop10<-left_join(Top10,Top10T,by=c("country"))
+jointop10[is.na(jointop10)]<-0
+jointop10
+```
+
+## Sex vs. Yearly Suicide Averages-Top 10
+
+```{r, echo=FALSE}
+ggplot(data=jointop10,aes(x=sex,y=AvgSuiYr,fill=sex))+geom_boxplot()
+```
+
+## Generation vs. Yearly Suicide Averages-Top 10
+
+```{r, include=FALSE}
+#Must create a new subset or average suicidal rates by year, generation and country first.
+generation<-Sdata%>%group_by(country,generation,year)%>%summarise(AvgsuiGen=mean(suicides.100k.pop))
+generation
+```
+
+```{r, include=FALSE}
+#Since we only care about top 10 countries, we will not join this with our top 10 existing group
+
+jointop10gen<-left_join(Top10,generation,by=c("country"))
+
+jointop10gen
+```
+
+```{r, echo=FALSE}
+#Now I can make my boxplots for the distirbution of suicidal yearly averages by generation
+ggplot(data=jointop10gen,aes(x=generation,y=AvgsuiGen,fill=generation))+geom_boxplot()
+```
+
+## Suicide Year Rates Over Time-Top 10
+
+```{r}
+barplotjoin<-jointop10%>%group_by(country,year)%>%summarise(Avg=mean(AvgSuiYr))
+ggplot(barplotjoin, aes(x = year, y = Avg, colour = country,group=country)) +
+  geom_line()+scale_fill_viridis_b()
+
+
+
+
+```
+
+## Suicide per 100k vs. GDP+Global
+
+```{r}
+ggplot(data=Sdata,aes(x=gdp_per_capita....,y=suicides.100k.pop))+geom_point()+scale_x_continuous(labels = scales::comma)
+```
+
+## 32-year Average Suicide per 100k vs. GDP per Capita+Top 10 Countries
+
+```{r, echo=FALSE}
+ggplot(data=jointop10,aes(x=gdp_per_capita....,y=AverageSuicide))+geom_point()
+```
+
+## 
+
+# Supplemental Graphs
+
+## Suicide per 100k vs. HDI+Global
+
+```{r, echo=FALSE}
+#Create another subset where the HDI NA's are 0
+HDI0<-Sdata
+HDI0[is.na(HDI0)]<-0
+HDI0
+
+```
+
+```{r, echo=FALSE}
+ggplot(data=HDI0,aes(x=HDI.for.year,y=suicides.100k.pop))+geom_point()
+```
+
+## 
+
+## 32year Average Suicide per 100k vs. HDI+Top 10 Countries
+
+```{r, echo=FALSE}
+ggplot(data=jointop10,aes(x=HDI.for.year,y=AverageSuicide))+geom_point()+theme_minimal()
+```
+
+## 
+
+# Assignment 1 Contents
+
+```{r, include=FALSE}
+str(Sdata)
+range(Sdata$HDI.for.year)
+range(Sdata$suicides.100k.pop)
+unique(Sdata$year)
+```
+
+The Human Development Index (HDI) is an index that measures the following key dimensions:
+
+-   Life expectancy: to determine health and longevity of life
+
+-   Expected years of schooling: to determine access to education
+
+-   Gross National Income per capita: to determine a decent standard of living
+
+HDI is divided into four tiers:
+
+-   Very high human development (0.8-1.0)
+
+-   High human development (0.7-0.79)
+
+-   Medium human development (0.55-. 70)
+
+-   Low human development (below 0.55).
+
+The box plot below shows 75% of the reported values were considered high human development or greater. Unfortunately, there are outliers that fall within the range of low human development. The density plot supports the findings in the box plot, showing the highest concentrations of HDI above .7.
+
+\
+The density plot for overall suicide rate per 100k shows the highest concentration at around 15 reported suicides cases. However, the box plot shows the data is significantly skewed. Two subsets of data by sex will now be explored.
+
+```{r, echo=FALSE}
+a<-density(Sdata$suicides.100k.pop)
+plot(a, main="Suicide Rate Per 100k")
+polygon(a, col="red")
+boxplot(Sdata$suicides.100k.pop, main="Suicide Rate Per 100k Box Plot")
+```
+
+Suicide rates are more prevalent among males. There is a significant difference between male and female outliers at the highest end of the reported scale. The highest concentrations of outliers for females centers around 16-30, while for males, it increases dramatically to 60-70.
+
+```{r, include=FALSE}
+Sdata.m<-Sdata[Sdata$sex=="male",]
+Sdata.f<-Sdata[Sdata$sex=="female",]
+```
+
+```{r, include=FALSE,fig.align='center'}
+par(mfrow=c(2,1))
+boxplot(Sdata.f$suicides.100k.pop,horizontal = T, main="Female Suicide Rate Per 100k",ylim=c(1,70))
+boxplot(Sdata.m$suicides.100k.pop,horizontal = T, main="Male Suicide Rate Per 100k", ylim=c(1,70))
+```
+
+# Score Calculation
+
+```{r, include=FALSE}
+Numberofrows<-27821
+NumberofColumns<-12
+Score<-(NumberofColumns*4)*(Numberofrows/100)
+Score
+```
+
+# 
